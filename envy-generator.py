@@ -85,8 +85,8 @@ melodies = {
 }
 
 # UI
-st.title("🎸 ENVY 스타일 TAB 생성기")
-st.caption("Post-Hardcore / Post-Rock — 모차르트 주사위 방식")
+st.title("🎸 POST ROCK 스타일 TAB 생성기")
+st.caption("Post-Hardcore / Post-Rock")
 
 st.divider()
 
