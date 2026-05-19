@@ -1,7 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import random
 
-# 코드 데이터
+# ==========================================
+# 1. 데이터 정의 (코드, MIDI, TAB악보, 설정)
+# ==========================================
+
 chords = {
     "클린톤": [
         "Em", "G", "D", "Am", "C", "Bm",
@@ -24,7 +28,30 @@ chords = {
     ],
 }
 
-# TAB 악보 데이터
+chord_notes = {
+    "Em":    [40, 47, 52, 55, 59, 64],
+    "G":     [43, 47, 52, 55, 59, 67],
+    "D":     [54, 59, 62, 66],
+    "Am":    [45, 52, 57, 60, 64],
+    "C":     [48, 52, 55, 60, 64],
+    "Bm":    [47, 54, 59, 62, 66],
+    "F":     [41, 45, 48, 53, 57, 65],
+    "A":     [45, 49, 52, 57, 64],
+    "Dm":    [50, 53, 57, 62],
+    "Em7":   [40, 47, 52, 55, 59, 62],
+    "Cmaj7": [48, 52, 55, 59, 64],
+    "Bm7":   [47, 54, 57, 62, 66],
+    "Dadd9": [50, 54, 57, 62, 66],
+    "Am7":   [45, 52, 55, 57, 64],
+    "E5":    [40, 47, 52],
+    "G5":    [43, 50, 55],
+    "D5":    [38, 45, 50],
+    "A5":    [33, 40, 45],
+    "F5":    [41, 48, 53],
+    "B5":    [35, 42, 47],
+    "C5":    [36, 43, 48],
+}
+
 tabs = {
     "Em":    ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "G":     ["e|--3--|", "B|--3--|", "G|--0--|", "D|--0--|", "A|--2--|", "E|--3--|"],
@@ -44,8 +71,8 @@ tabs = {
     "Esus4": ["e|--0--|", "B|--0--|", "G|--2--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "Cadd9": ["e|--0--|", "B|--3--|", "G|--0--|", "D|--2--|", "A|--3--|", "E|--x--|"],
     "Gadd9": ["e|--0--|", "B|--3--|", "G|--0--|", "D|--0--|", "A|--2--|", "E|--3--|"],
-    "Em9":   ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
-    "Am9":   ["e|--0--|", "B|--1--|", "G|--0--|", "D|--2--|", "A|--0--|", "E|--x--|"],
+    "Em9":    ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
+    "Am9":    ["e|--0--|", "B|--1--|", "G|--0--|", "D|--2--|", "A|--0--|", "E|--x--|"],
     "E5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "G5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--5--|", "A|--5--|", "E|--3--|"],
     "D5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--0--|", "A|--5--|", "E|--x--|"],
@@ -80,27 +107,35 @@ tabs = {
     "Dm9":   ["e|--1--|", "B|--1--|", "G|--0--|", "D|--0--|", "A|--x--|", "E|--x--|"],
 }
 
-# 파트별 멜로디 설정
 melody_settings = {
     "인트로": {
-        "strings": ["e", "B", "G"],       # 주로 고음 줄
-        "fret_range": (0, 7),             # 낮은 프렛 (클린 개방음)
-        "notes": 8,                        # 음표 개수
-        "rest_chance": 0.2,               # 쉼표(---) 확률
+        "strings": ["e", "B", "G"],
+        "fret_range": (0, 7),
+        "notes": 8,
+        "rest_chance": 0.2,
     },
     "클라이맥스": {
-        "strings": ["D", "A", "E"],       # 주로 저음 줄
-        "fret_range": (0, 12),            # 전체 프렛
+        "strings": ["D", "A", "E"],
+        "fret_range": (0, 12),
         "notes": 8,
         "rest_chance": 0.1,
     },
     "아웃트로": {
-        "strings": ["e", "B", "G", "D"],  # 혼합
+        "strings": ["e", "B", "G", "D"],
         "fret_range": (0, 12),
         "notes": 8,
-        "rest_chance": 0.3,               # 여백 많이
+        "rest_chance": 0.3,
     },
 }
+
+open_strings = {"E": 40, "A": 45, "D": 50, "G": 55, "B": 59, "e": 64}
+
+# ==========================================
+# 2. 오디오 연산 및 생성 로직 함수
+# ==========================================
+
+def midi_to_freq(midi):
+    return 440.0 * (2 ** ((midi - 69) / 12))
 
 def generate_random_melody(part):
     setting = melody_settings[part]
@@ -110,23 +145,24 @@ def generate_random_melody(part):
     note_count = setting["notes"]
     rest_chance = setting["rest_chance"]
 
-    # 각 줄별 음표 배열 초기화
     string_notes = {s: [] for s in strings}
+    melody_freqs = []
 
-    for i in range(note_count):
-        # 이번 박자에 소리낼 줄 선택
+    for _ in range(note_count):
         chosen = random.choice(active_strings)
         for s in strings:
             if s == chosen:
                 if random.random() < rest_chance:
                     string_notes[s].append("--")
+                    melody_freqs.append(0)
                 else:
                     fret = random.randint(fret_min, fret_max)
                     string_notes[s].append(str(fret).rjust(2, "-"))
+                    midi = open_strings[s] + fret
+                    melody_freqs.append(round(midi_to_freq(midi), 2))
             else:
                 string_notes[s].append("--")
 
-    # TAB 형식으로 변환
     tab_lines = []
     for s in strings:
         line = f"{s}|"
@@ -135,45 +171,106 @@ def generate_random_melody(part):
         line += "|"
         tab_lines.append(line)
 
-    return tab_lines
+    return tab_lines, melody_freqs
 
-# UI
-st.title("🎸 POST ROCK 스타일 TAB 생성기")
-st.caption("Post-Hardcore / Post-Rock")
+def play_chord_html(notes):
+    freqs = [round(midi_to_freq(n), 2) for n in notes]
+    return f"""
+    <script>
+    (function() {{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const freqs = {freqs};
+        freqs.forEach(freq => {{
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 1.5);
+        }});
+    }})();
+    </script>
+    <p style="color:#55ff55; font-size:12px; font-weight:bold;">🔊 코드 재생 완료</p>
+    """
 
+def play_melody_html(freqs):
+    valid = [(i, f) for i, f in enumerate(freqs) if f > 0]
+    notes_js = str([[i * 0.3, f] for i, f in valid])
+    return f"""
+    <script>
+    (function() {{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = {notes_js};
+        notes.forEach(([time, freq]) => {{
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + time);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + time);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + time + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + time);
+            osc.stop(ctx.currentTime + time + 0.25);
+        }});
+    }})();
+    </script>
+    <p style="color:#55ff55; font-size:12px; font-weight:bold;">🔊 멜로디 재생 완료</p>
+    """
+
+# ==========================================
+# 3. Streamlit 웹 인터페이스 (UI) 구현
+# ==========================================
+
+st.title("🎸 ENVY 스타일 TAB 생성기")
+st.caption("Post-Hardcore / Post-Rock — 모차르트 주사위 방식")
 st.divider()
 
-# 코드 섹션
+# --- 코드 섹션 ---
 st.subheader("코드 TAB")
 chord_part = st.radio("파트 선택", ["클린톤", "디스토션", "빌드업"], horizontal=True)
 
 if st.button("랜덤 코드 진행 생성"):
     pool = chords[chord_part]
     length = 4 if chord_part == "디스토션" else random.randint(3, 4)
-    progression = random.choices(pool, k=length)
+    st.session_state["progression"] = random.choices(pool, k=length)
 
+# 세션 상태 기반 렌더링 (재생 버튼 클릭 시 악보 소멸 방지)
+if "progression" in st.session_state:
+    progression = st.session_state["progression"]
     st.write("**코드 진행:** " + " → ".join(progression))
-
+    
     unique_chords = list(dict.fromkeys(progression))
     cols = st.columns(len(unique_chords))
+    
     for i, chord in enumerate(unique_chords):
         with cols[i]:
             st.markdown(f"**[ {chord} ]**")
             if chord in tabs:
                 st.code("\n".join(tabs[chord]), language=None)
-
-    st.divider()
-    st.success("✅ 생성 완료! 다시 만들려면 위 버튼을 누르세요 🎸")
+            if chord in chord_notes:
+                if st.button(f"▶ {chord} 재생", key=f"play_{chord}"):
+                    components.html(play_chord_html(chord_notes[chord]), height=35)
+    st.success("✅ 생성 완료!")
 
 st.divider()
 
-# 멜로디 섹션
+# --- 멜로디 섹션 ---
 st.subheader("멜로디 TAB")
 melody_part = st.radio("멜로디 파트", ["인트로", "클라이맥스", "아웃트로"], horizontal=True)
 
 if st.button("랜덤 멜로디 생성"):
-    tab_lines = generate_random_melody(melody_part)
-    st.code("\n".join(tab_lines), language=None)
+    tab_lines, freqs = generate_random_melody(melody_part)
+    st.session_state["melody_tab"] = tab_lines
+    st.session_state["melody_freqs"] = freqs
 
-    st.divider()
-    st.success("✅ 생성 완료! 다시 만들려면 위 버튼을 누르세요 🎸")
+# 세션 상태 기반 렌더링 (멜로디 재생 버튼 클릭 시 악보 소멸 방지)
+if "melody_tab" in st.session_state:
+    st.code("\n".join(st.session_state["melody_tab"]), language=None)
+    if st.button("▶ 멜로디 재생"):
+        components.html(play_melody_html(st.session_state["melody_freqs"]), height=35)
+    st.success("✅ 생성 완료!")
