@@ -2,10 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import random
 
-# ==========================================
-# 1. 데이터 정의 (코드, MIDI, TAB악보, 설정)
-# ==========================================
-
+# 코드 데이터
 chords = {
     "클린톤": [
         "Em", "G", "D", "Am", "C", "Bm",
@@ -28,6 +25,7 @@ chords = {
     ],
 }
 
+# 코드별 구성음 (MIDI 노트 번호)
 chord_notes = {
     "Em":    [40, 47, 52, 55, 59, 64],
     "G":     [43, 47, 52, 55, 59, 67],
@@ -52,6 +50,7 @@ chord_notes = {
     "C5":    [36, 43, 48],
 }
 
+# TAB 악보 데이터
 tabs = {
     "Em":    ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "G":     ["e|--3--|", "B|--3--|", "G|--0--|", "D|--0--|", "A|--2--|", "E|--3--|"],
@@ -71,8 +70,8 @@ tabs = {
     "Esus4": ["e|--0--|", "B|--0--|", "G|--2--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "Cadd9": ["e|--0--|", "B|--3--|", "G|--0--|", "D|--2--|", "A|--3--|", "E|--x--|"],
     "Gadd9": ["e|--0--|", "B|--3--|", "G|--0--|", "D|--0--|", "A|--2--|", "E|--3--|"],
-    "Em9":    ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
-    "Am9":    ["e|--0--|", "B|--1--|", "G|--0--|", "D|--2--|", "A|--0--|", "E|--x--|"],
+    "Em9":   ["e|--0--|", "B|--0--|", "G|--0--|", "D|--2--|", "A|--2--|", "E|--0--|"],
+    "Am9":   ["e|--0--|", "B|--1--|", "G|--0--|", "D|--2--|", "A|--0--|", "E|--x--|"],
     "E5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--2--|", "A|--2--|", "E|--0--|"],
     "G5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--5--|", "A|--5--|", "E|--3--|"],
     "D5":    ["e|--x--|", "B|--x--|", "G|--x--|", "D|--0--|", "A|--5--|", "E|--x--|"],
@@ -107,6 +106,7 @@ tabs = {
     "Dm9":   ["e|--1--|", "B|--1--|", "G|--0--|", "D|--0--|", "A|--x--|", "E|--x--|"],
 }
 
+# 파트별 멜로디 설정
 melody_settings = {
     "인트로": {
         "strings": ["e", "B", "G"],
@@ -128,11 +128,8 @@ melody_settings = {
     },
 }
 
+# 기타 개방현 MIDI 노트
 open_strings = {"E": 40, "A": 45, "D": 50, "G": 55, "B": 59, "e": 64}
-
-# ==========================================
-# 2. 오디오 연산 및 생성 로직 함수
-# ==========================================
 
 def midi_to_freq(midi):
     return 440.0 * (2 ** ((midi - 69) / 12))
@@ -148,7 +145,7 @@ def generate_random_melody(part):
     string_notes = {s: [] for s in strings}
     melody_freqs = []
 
-    for _ in range(note_count):
+    for i in range(note_count):
         chosen = random.choice(active_strings)
         for s in strings:
             if s == chosen:
@@ -194,7 +191,7 @@ def play_chord_html(notes):
         }});
     }})();
     </script>
-    <p style="color:#55ff55; font-size:12px; font-weight:bold;">🔊 코드 재생 완료</p>
+    <p style="color:gray; font-size:12px;">🔊 코드 재생 중...</p>
     """
 
 def play_melody_html(freqs):
@@ -219,34 +216,30 @@ def play_melody_html(freqs):
         }});
     }})();
     </script>
-    <p style="color:#55ff55; font-size:12px; font-weight:bold;">🔊 멜로디 재생 완료</p>
+    <p style="color:gray; font-size:12px;">🔊 멜로디 재생 중...</p>
     """
 
-# ==========================================
-# 3. Streamlit 웹 인터페이스 (UI) 구현
-# ==========================================
+# UI
+st.title("🎸 POST ROCK스타일 TAB 생성기")
+st.caption("Post-Hardcore / Post-Rock")
 
-st.title("🎸 ENVY 스타일 TAB 생성기")
-st.caption("Post-Hardcore / Post-Rock — 모차르트 주사위 방식")
 st.divider()
 
-# --- 코드 섹션 ---
+# 코드 섹션
 st.subheader("코드 TAB")
 chord_part = st.radio("파트 선택", ["클린톤", "디스토션", "빌드업"], horizontal=True)
 
 if st.button("랜덤 코드 진행 생성"):
     pool = chords[chord_part]
     length = 4 if chord_part == "디스토션" else random.randint(3, 4)
-    st.session_state["progression"] = random.choices(pool, k=length)
+    progression = random.choices(pool, k=length)
+    st.session_state["progression"] = progression
 
-# 세션 상태 기반 렌더링 (재생 버튼 클릭 시 악보 소멸 방지)
 if "progression" in st.session_state:
     progression = st.session_state["progression"]
     st.write("**코드 진행:** " + " → ".join(progression))
-    
     unique_chords = list(dict.fromkeys(progression))
     cols = st.columns(len(unique_chords))
-    
     for i, chord in enumerate(unique_chords):
         with cols[i]:
             st.markdown(f"**[ {chord} ]**")
@@ -254,12 +247,13 @@ if "progression" in st.session_state:
                 st.code("\n".join(tabs[chord]), language=None)
             if chord in chord_notes:
                 if st.button(f"▶ {chord} 재생", key=f"play_{chord}"):
-                    components.html(play_chord_html(chord_notes[chord]), height=35)
-    st.success("✅ 생성 완료!")
+                    components.html(play_chord_html(chord_notes[chord]), height=40)
+    st.divider()
+    st.success("✅ 생성 완료! 다시 만들려면 위 버튼을 누르세요 🎸")
 
 st.divider()
 
-# --- 멜로디 섹션 ---
+# 멜로디 섹션
 st.subheader("멜로디 TAB")
 melody_part = st.radio("멜로디 파트", ["인트로", "클라이맥스", "아웃트로"], horizontal=True)
 
@@ -268,9 +262,9 @@ if st.button("랜덤 멜로디 생성"):
     st.session_state["melody_tab"] = tab_lines
     st.session_state["melody_freqs"] = freqs
 
-# 세션 상태 기반 렌더링 (멜로디 재생 버튼 클릭 시 악보 소멸 방지)
 if "melody_tab" in st.session_state:
     st.code("\n".join(st.session_state["melody_tab"]), language=None)
     if st.button("▶ 멜로디 재생"):
-        components.html(play_melody_html(st.session_state["melody_freqs"]), height=35)
-    st.success("✅ 생성 완료!")
+        components.html(play_melody_html(st.session_state["melody_freqs"]), height=40)
+    st.divider()
+    st.success("✅ 생성 완료! 다시 만들려면 위 버튼을 누르세요 🎸")
